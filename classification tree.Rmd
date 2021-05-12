@@ -1,0 +1,185 @@
+---
+title: "IE 425 ASSIGNMENT 1"
+author: "Ramazan Eraslan"
+date: "5/3/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# PART A
+## Installing Required Libraries and Data
+```{r}
+library(caTools)
+library(kernlab)
+library(rpart)
+library(rpart.plot)
+library(tree)
+data("spam", package = "kernlab")
+```
+## Splitting Data into Training Set and Test Set
+```{r}
+set.seed(1000)
+split=sample.split(spam$type,SplitRatio=0.7)
+spamtr=subset(spam,split==TRUE)
+spamte=subset(spam,split==FALSE)
+```
+Number of Spam and Nonspam observations in overall set:
+```{r}
+table(spam$type)
+```
+Spam percentage in overall test:
+```{r}
+spam_percentage<-as.numeric(table(spam$type)[2]/(table(spam$type)[1]+table(spam$type)[2]))
+spam_percentage
+```
+
+Number of Spam and Nonspam observations in training set:
+```{r}
+table(spamtr$type)
+```
+Spam percentage in training test:
+```{r}
+spamtr_percentage<-as.numeric(table(spamtr$type)[2]/(table(spamtr$type)[1]+table(spamtr$type)[2]))
+spamtr_percentage
+```
+Number of Spam and Nonspam observations in test set:
+```{r}
+table(spamte$type)
+```
+Spam percentage in test test:
+```{r}
+spamte_percentage<-as.numeric(table(spamte$type)[2]/(table(spamte$type)[1]+table(spamte$type)[2]))
+spamte_percentage
+```
+
+# PART B FOR RPART PACKAGE
+Largest possible tree with rpart package. It was found by using parameter values minsplit=2,minbucket=1,cp=0.
+```{r}
+max_rpart_tree<-rpart(type~.,method="class",data=spamtr,
+control=rpart.control(minsplit=2,minbucket=1,cp=0))
+prp(max_rpart_tree)
+```
+
+Table in below shows the change of cross validation error (xerror) and Complexity Parameter (CP) with different number of splits.The minimum cp occured in tree with 214 splits. So the number of leaf node is 215.( # of leaf nodes= # of splits + 1)
+
+```{r}
+set.seed(1000)
+print(max_rpart_tree$cptable)
+```
+
+# PART C FOR RPART PACKAGE
+Predictions in test set with largest tree in rpart:
+```{r}
+predict_test_max_rpart<-predict(max_rpart_tree,newdata=spamte,type="class")
+table(spamte$type,predict_test_max_rpart)
+```
+Error Rate= (58+75)/1380=`r (58+75)/1380` \
+False Positive Rate= 75/(761+75)=`r 75/(761+75)` \
+False Negative Rate= 58/(486+58)=`r 58/(486+58)`
+
+# PART D FOR RPART PACKAGE
+Minimum xerror value in the cptable was found with 64 splits and cp=0.0009193591.
+```{r}
+
+prunedtree_rpart<-prune(tree = max_rpart_tree,cp=0.0009193591)
+prp(prunedtree_rpart)
+```
+If one standard error added to smallest xerror, new xerror value becomes `r 0.2143420+0.01243555`. So the optimum number of split becomes 27 with cp=0.0023640662.
+```{r}
+opttree_rpart<-prune(tree = max_rpart_tree,cp=0.0023640662)
+prp(opttree_rpart)
+print(opttree_rpart$cptable)
+```
+
+
+# PART E FOR RPART PACKAGE
+Predictions in test set with optimal tree in rpart:
+```{r}
+predict_test_opt_rpart<-predict(opttree_rpart,newdata=spamte,type="class")
+table(spamte$type,predict_test_opt_rpart)
+```
+Error Rate= (49+62)/1380=`r (49+62)/1380` \
+False Positive Rate= 49/(787+49)=`r 49/(787+49)`\
+False Negative Rate= 62/(482+62)=`r 62/(482+62)`
+
+**Error rate decreases from `r (58+75)/1380` to `r (49+62)/1380` after pruning the tree.**
+
+# PART B FOR TREE PACKAGE
+Largest possible tree with tree package. It was found by using mindev=0.
+```{r}
+set.seed(1000)
+max_treepack_tree<- tree(type~.,data = spamtr,mindev=0)
+plot(max_treepack_tree)
+```
+In summary below, it can be seen that the number of terminal(leaf) nodes is 136 in largest tree achieved by using tree package.
+```{r}
+summary(max_treepack_tree)
+```
+
+# PART C FOR TREE PACKAGE
+
+Prediction of test set with largest possible tree found by tree package:
+
+```{r}
+set.seed(1000)
+predict_test_max_treepack<-predict(max_treepack_tree,newdata=spamte,type="class")
+table(spamte$type,predict_test_max_treepack)
+```
+**original rmd file shows 60 and 484 in row 2**
+
+Error Rate= (54+60)/1380=`r (54+60)/1380` \
+False Positive Rate= 54/(782+54)=`r 54/(782+54)` \
+False Negative Rate= 60/(484+60)=`r 60/(484+60)`\
+
+**pdf report shows 59 and 485 in row 2**
+
+Error Rate= (54+59)/1380=`r (54+59)/1380` \
+False Positive Rate= 54/(782+54)=`r 54/(782+54)` \
+False Negative Rate= 59/(485+59)=`r 59/(485+59)`\
+
+# PART D FOR TREE PACKAGE
+
+Finding minimum deviation value which seen in minimum index. This index value (14) is the best size for pruning.
+
+```{r}
+set.seed(1000)
+cvtree<- cv.tree(max_treepack_tree,K=10)
+min(cvtree$dev)
+best_size<-min(cvtree$size[cvtree$dev==min(cvtree$dev)])
+best_size
+
+```
+
+Opttree in tree package:
+
+```{r}
+opttree_tree_pack<-prune.tree(max_treepack_tree,best = best_size)
+plot(opttree_tree_pack)
+text(opttree_tree_pack,cex=0.5)
+```
+
+# PART E FOR TREE PACKAGE
+
+Prediction of test set with opttree in tree package:
+
+```{r}
+predict_test_opt_tree<-predict(opttree_tree_pack,newdata=spamte,type="class")
+table(spamte$type,predict_test_opt_tree)
+```
+
+Error Rate= (61+65)/1380=`r (61+65)/1380` \
+False Positive Rate= 61/(775+61)=`r 61/(775+61)` \
+False Negative Rate= 65/(479+65)=`r 65/(479+65)`
+
+**Error rate increases from `r (54+60)/1380` to `r (61+65)/1380` after pruning the tree.**
+
+# Conclusion
+Error rate decreases after pruning the tree created by rpart package. However error rate increases after pruning the tree created by tree package.
+
+**NOTE: There are some differences of xerrors in cptable seen rmarkdown report and cptable seen rscript file.** 
+
